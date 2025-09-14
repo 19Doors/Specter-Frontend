@@ -8,6 +8,7 @@ export const useFilesChat = create<{
 	files: null,
 	setFiles: (f: FileList) => set({ files: f })
 }));
+
 export function useFileUpload() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
