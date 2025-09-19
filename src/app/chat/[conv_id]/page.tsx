@@ -270,6 +270,7 @@ export default function Chat({ params }) {
 		async function getConversations(user_id: string) {
 			const response = await get_conversations({ "user_id": user_id, "conversation_id": conv_id });
 			setConversation((state) => response)
+			console.log(response)
 			setSummary((state) => response.conversations.summary)
 			setBB((s) => {
 				let data = response.conversations.summary.risk_assessment.high_risk_items
