@@ -1,399 +1,207 @@
 "use client"
-import Image from "next/image";
-import "./globals.css"
-import TextareaAutosize from 'react-textarea-autosize';
-import { useState, useRef, useEffect, useTransition } from 'react'
-import { gsap } from 'gsap';
-import { SplitText } from 'gsap/src/SplitText'
-import { useGSAP } from '@gsap/react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
-import ChatMessage from "@/components/ChatMessage";
 import { FileUploadButton } from "@/components/FileUploadButton";
-import { useFilesChat } from '@/hooks/useFileUpload';
+import Image from "next/image";
+import { uploadFile_newConvo } from "@/lib/action";
+import { CloudUpload } from "lucide-react";
+import { useState, DragEvent, useEffect } from "react";
+import { authClient } from "@/lib/auth-client";
+import PdfWithBoxes from "@/components/pdfView";
+import dynamic from "next/dynamic";
+import { LegalDocumentSummary } from "@/lib/models";
+import { Separator } from "@/components/ui/separator";
+import {
+	Card,
+	CardAction,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SpecSidebar } from "@/components/sidebar";
+import { Accordion, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import PdfViewerWithBoxes from "@/components/pdfView";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
-gsap.registerPlugin(useGSAP);
-gsap.registerPlugin(SplitText);
+const MyPdf = dynamic(
+	() => import('@/components/pdfView'),
+	{ ssr: false }
+);
 
-interface TextContent {
-	type: "text";
-	text: string;
-}
-interface FileContent {
-	type: "file";
+interface FileData {
 	base64: string;
-	mime_type: string;
-}
-type ContentItem = TextContent | FileContent;
-interface Message {
-	id: string;
-	role: 'user' | 'assistant';
-	content: ContentItem[] | string;
-	timestamp: Date;
+	mimeType: string;
+	name: string;
 }
 
-export default function Home() {
-	let query = "";
-	let isActive = false;
-	const [messages, setMessages] = useState<Message[]>([]);
-	const [isStreaming, setIsStreaming] = useState(false);
-	const [streamingContent, setStreamingContent] = useState("");
-	const [activeFiles, setActiveFiles] = useState([]);
-	const [inputValue, setInputValue] = useState(""); // Add controlled input state
-	const [isPending, startTransition] = useTransition(); // Add transition hook
+interface BoundingBox {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	pageNumber: number;
+	id?: string;
+	label?: string;
+	confidence?: number;
+	color?: string;
+}
 
-	const threadTitle = "Summarize two-page document."
-	const files = useFilesChat((state) => state.files);
-	const setFiles = useFilesChat((state) => state.setFiles);
+export default function Dashboard() {
+	const sidebarOpen = true;
 
-	useEffect(() => { }, [activeFiles]);
+	const [files, setFiles] = useState<FileData[]>([]);
+	const [summary, setSummary] = useState<LegalDocumentSummary>();
+	const [user_id, setUserId] = useState("");
+	const {
+		data: session,
+		isPending,
+		error, //error object
+		refetch //refetch the session
+	} = authClient.useSession()
+	const router = useRouter();
+
 
 	useEffect(() => {
-		if (!files) return;
-		setActiveFiles([]); // Clear first to avoid duplicates
-		for (let i = 0; i < files?.length; i++) {
-			setActiveFiles((state) => ([...state, files.item(i).name]));
+		if (!isPending && !session) {
+			router.push("/login");
 		}
-	}, [files]);
-
-	// Refs for GSAP animations
-	const containerRef = useRef(null);
-	const landingSceneRef = useRef(null);
-	const chatSceneRef = useRef(null);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const msgContentRef = useRef(null);
-	const chatTextAreaRef = useRef<HTMLTextAreaElement>(null);
-	const landingTextAreaRef = useRef<HTMLTextAreaElement>(null);
-	const tl = useRef<gsap.core.Timeline>();
-
-	const { contextSafe } = useGSAP(() => {
-		tl.current = gsap.timeline({ paused: true });
-		gsap.set(chatSceneRef.current, {
-			opacity: 0,
-			y: 50,
-			display: 'none'
-		});
-		tl.current
-			.to(landingSceneRef.current, {
-				opacity: 0,
-				y: -30,
-				duration: 0.6,
-				ease: "power2.inOut"
-			})
-			.set(chatSceneRef.current, {
-				display: 'flex'
-			})
-			.fromTo(chatSceneRef.current,
-				{
-					opacity: 0,
-					y: 30
-				},
-				{
-					opacity: 1,
-					y: 0,
-					duration: 0.8,
-					ease: "power2.out"
-				},
-				"-=0.2"
-			)
-			.set(landingSceneRef.current, {
-				display: 'none'
-			});
-	}, { scope: containerRef });
-
-	const triggerSceneTransition = contextSafe(() => {
-		if (tl.current && !isActive) {
-			isActive = true;
-			tl.current.play();
+		if (session) {
+			setUserId(session.user.id)
 		}
-	});
+	}, [session, isPending])
 
-	const call = async () => {
-		if (!inputValue.trim() || isStreaming) return;
 
-		const currentQuery = inputValue.trim();
-
-		// IMMEDIATE UI UPDATES 
-		// 1. Clear input immediately
-		setInputValue("");
-		if (chatTextAreaRef.current) {
-			chatTextAreaRef.current.value = "";
-		}
-		if (landingTextAreaRef.current) {
-			landingTextAreaRef.current.value = "";
-		}
-
-		// 2. Trigger scene transition immediately if needed
-		if (!isActive) {
-			triggerSceneTransition();
-			setActiveFiles([]);
-		}
-
-		// 3. Add user message immediately (optimistic)
-		const userMessageId = `msg_${Date.now()}`;
-		const optimisticUserMessage: Message = {
-			id: userMessageId,
-			role: 'user',
-			content: [{ type: "text", text: currentQuery }],
-			timestamp: new Date(),
-		};
-
-		setMessages(prev => [...prev, optimisticUserMessage]);
-
-		// 4. Add loading message immediately
-		const loadingMessageId = `loading_${Date.now()}`;
-		const loadingMessage: Message = {
-			id: loadingMessageId,
-			role: 'assistant',
-			content: "Working",
-			timestamp: new Date(),
-		};
-
-		setMessages(prev => [...prev, loadingMessage]);
-
-		// BACKGROUND PROCESSING (Non-blocking)
-		startTransition(async () => {
-			try {
-				setIsStreaming(true);
-
-				const cq: ContentItem[] = [
-					{ type: "text", text: currentQuery }
-				];
-
-				// Process files asynchronously
-				if (files?.length > 0) {
-					const filePromises = [];
-					for (let i = 0; i < files.length; i++) {
-						const file = files.item(i);
-						if (file) {
-							const filePromise = new Promise<FileContent>((resolve) => {
-								const reader = new FileReader();
-								reader.onload = function(e) {
-									const base64String = e.target?.result as string;
-									const pureBase64 = base64String.split(',')[1];
-									resolve({
-										type: "file",
-										base64: pureBase64,
-										mime_type: file.type || "application/pdf"
-									});
-								};
-								reader.readAsDataURL(file);
-							});
-							filePromises.push(filePromise);
-						}
-					}
-
-					const fileContents = await Promise.all(filePromises);
-					cq.push(...fileContents);
-				}
-
-				// Update user message with files if any
-				if (cq.length > 1) {
-					setMessages(prev => prev.map(msg =>
-						msg.id === userMessageId
-							? { ...msg, content: cq}
-							: msg
-					));
+	// Helper function to convert file to base64
+	const convertFileToBase64 = (file: File): Promise<string> => {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => {
+				if (typeof reader.result === 'string') {
+					// Remove the data URL prefix to get pure base64
+					const base64 = reader.result.split(',')[1];
+					resolve(base64);
 				} else {
-					// Mark user message as confirmed
-					setMessages(prev => prev.map(msg =>
-						msg.id === userMessageId
-							? { ...msg}
-							: msg
-					));
+					reject(new Error('Failed to read file as base64'));
 				}
-
-				setFiles(null);
-
-				const data = { query: cq };
-
-				const response = await fetch("http://127.0.0.1:8000/llmcall", {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					body: JSON.stringify(data)
-				});
-
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-
-				const rdata = await response.json();
-
-				// Replace loading message with actual response
-				const aiMessage: Message = {
-					id: `msg_${Date.now()}`,
-					role: 'assistant',
-					content: rdata.content,
-					timestamp: new Date()
-				};
-
-				setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId).concat(aiMessage));
-
-			} catch (error) {
-				console.error("Error calling API:", error);
-
-				// Replace loading message with error message
-				const errorMessage: Message = {
-					id: `msg_${Date.now()}`,
-					role: 'assistant',
-					content: "Sorry, there was an error processing your request. Please try again.",
-					timestamp: new Date()
-				};
-
-				setMessages(prev => prev.filter(msg => msg.id !== loadingMessageId).concat(errorMessage));
-			} finally {
-				setIsStreaming(false);
-			}
+			};
+			reader.onerror = () => reject(reader.error);
+			reader.readAsDataURL(file);
 		});
 	};
 
-	const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		const value = e.target.value;
-		setInputValue(value);
-		query = value; // Keep for compatibility
-	};
+	async function handleDrop(e: DragEvent<HTMLDivElement>) {
+		e.preventDefault();
+		let cf;
+		const droppedFiles = e.dataTransfer.files;
+
+		if (droppedFiles.length > 0) {
+			const filePromises = Array.from(droppedFiles).map(async (file) => {
+				try {
+					const base64 = await convertFileToBase64(file);
+					return {
+						base64,
+						mimeType: file.type,
+						name: file.name
+					};
+				} catch (error) {
+					console.error(`Error converting file ${file.name}:`, error);
+					return null;
+				}
+			});
+
+			// Wait for all files to be converted
+			const convertedFiles = await Promise.all(filePromises);
+
+			// Filter out any null values (failed conversions)
+			const validFiles = convertedFiles.filter((file): file is FileData => file !== null);
+			cf = validFiles;
+
+			setFiles((prevFiles) => validFiles);
+		}
+	}
+
+	async function handleSend() {
+		const conversationId = crypto.randomUUID();
+		console.log(files)
+
+		const uploadData = {
+			user_id: user_id,
+			conversation_id: conversationId,
+			files: files
+		};
+
+		await uploadFile_newConvo(uploadData)
+		router.push(`/chat/${conversationId}`)
+	}
 
 	return (
-		<div ref={containerRef} className="h-screen w-full overflow-hidden">
-			{/* Landing Scene */}
-			<div
-				ref={landingSceneRef}
-				className="flex justify-center items-center h-screen w-full absolute inset-0"
-			>
-				<div className="flex flex-col justify-center items-center text-center space-y-12 h-screen md:w-1/3">
-					<div className="flex flex-col text-2xl">
-						<p className="font-merri font-bold">
-							Private, grounded explanation
-						</p>
-						<p className="font-merri font-bold">
-							with line-by-line citations.
-						</p>
+		<SidebarProvider defaultOpen={sidebarOpen}>
+			<SpecSidebar />
+			<div className="w-full h-screen">
+				<div className="w-full h-full flex justify-center items-center flex-col space-y-8">
+					<div className="text-center w-1/3 space-y-1">
+						<h1 className="font-merri text-2xl font-bold">Upload Your Legal Documents</h1>
+						<p className="font-merri font-light">Let our AI analyze your contracts, agreements, and legal documents to provide clear, actionable insights </p>
 					</div>
-					<div className="w-full flex flex-col gap-sm bg-[#F5F5F5] border-1 border-[#E0E0E0] rounded-sm">
-						{activeFiles.length != 0 && (
-							<div className="flex font-inter text-xs font-bold text-bg tracking-tight m-2 gap-2 justify-between">
-								{activeFiles.map((f) => {
-									return (
-										<div key={f} className="p-2 flex gap-2 items-center bg-background rounded-xs flex-1 min-w-0">
-											<Image src="./adobe_color.svg" alt="pdf" height={16} width={16} />
-											<span className="truncate">{f}</span>
-										</div>
-									)
-								})}
-							</div>
-						)}
-						<TextareaAutosize
-							ref={landingTextAreaRef}
-							className="w-full resize-none rounded-sm outline-none bg-[#F5F5F5] p-[18px] text-[#4d4d4d] font-inter tracking-tight text-xs"
-							placeholder="Ask about your legal document..."
-							value={inputValue}
-							onChange={handleInputChange}
-							onKeyDown={(e) => {
-								if (e.key === "Enter" && !e.shiftKey) {
-									e.preventDefault();
-									call();
-								}
-							}}
-						/>
-						<div className="mr-auto text-sm font-merri pl-2 pb-2">
-							<DropdownMenu>
-								<DropdownMenuTrigger asChild>
-									<Button variant="link" size="sm" className="text-color2 shadow-none text-[14px] font-inter tracking-tight font-bold outline-none rounded-xs">
-										<Plus size={10} /> Files and sources
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent className="rounded-xs">
-									<FileUploadButton accept=".pdf" className="p-2 cursor-pointer font-inter tracking-tighter font-bold text-[14px]">
-										Upload Files from Computer
-									</FileUploadButton>
-								</DropdownMenuContent>
-							</DropdownMenu>
-						</div>
-					</div>
-				</div>
-			</div>
 
-			{/* Chat Scene */}
-			<div
-				ref={chatSceneRef}
-				className="w-full hidden h-screen flex-col absolute inset-0"
-			>
-				<header className="font-bold h-auto text-xl font-merri m-2">
-					{threadTitle}
-				</header>
+					{files.length == 0 && (
+						<div
+							onDrop={handleDrop}
+							onDragOver={(event) => event.preventDefault()}
+							className="font-inter text-xs cursor-pointer flex flex-col space-y-2 justify-center items-center rounded-xs border border-color3 w-1/4 h-1/4"
+						>
+							{/* <p className="italic font-light"> DRAG & DROP ZONE </p> */}
+							<CloudUpload size={48} />
+							<p className="font-merri">Drag and drop your documents here</p>
+							<p className="font-merri"><strong>Supported Format:</strong> PDF</p>
+						</div>)
+					}
+					{
+						files.length > 0 && (
 
-				<div className="flex-1 overflow-y-auto pb-32">
-					<div className="w-full flex justify-center">
-						<div className="md:w-[40%] flex flex-col gap-4 py-4 px-4 md:px-0">
-							{messages.map((message: Message) => {
-								const content = message.role === "user"
-									? Array.isArray(message.content)
-										? message.content.find(c => c.type === "text")?.text || ""
-										: message.content
-									: message.content as string;
-
-								return (
-									<div key={message.id}>
-										<ChatMessage
-											content={content}
-											role={message.role}
-										/>
-									</div>
-								);
-							})}
-						</div>
-					</div>
-				</div>
-
-				<div className="fixed bottom-0 left-0 right-0 bg-white p-4">
-					<div className="w-full flex justify-center">
-						<div className="w-full md:w-1/3 flex flex-col gap-sm bg-[#F5F5F5] border-1 border-[#E0E0E0] rounded-sm">
-							{activeFiles.length != 0 && (
-								<div className="flex font-inter text-xs font-bold text-bg tracking-tight m-2 gap-2 justify-between">
-									{activeFiles.map((f) => {
+							<div className="max-w-1/3 flex flex-col text-center font-inter text-xs font-bold text-bg tracking-tight m-2 gap-4 justify-between">
+								<div className="flex flex-col gap-2">
+									{files.map((f) => {
 										return (
-											<div key={f} className="p-2 flex gap-2 items-center bg-background rounded-xs flex-1 min-w-0">
+											<div key={f.name} className="flex p-4 gap-2 flex-1 items-center rounded-xs min-w-0 w-full bg-color2">
 												<Image src="./adobe_color.svg" alt="pdf" height={16} width={16} />
-												<span className="truncate">{f}</span>
+												<span className="truncate">{f.name}</span>
 											</div>
 										)
 									})}
 								</div>
-							)}
-							<TextareaAutosize
-								ref={chatTextAreaRef}
-								className="w-full resize-none rounded-sm outline-none bg-[#F5F5F5] p-[18px] text-[#4d4d4d] font-inter tracking-tight text-xs"
-								placeholder="Ask about your legal document..."
-								value={inputValue}
-								onChange={handleInputChange}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" && !e.shiftKey) {
-										e.preventDefault();
-										call();
-									}
-								}}
-							/>
-							<div className="mr-auto text-sm font-merri pl-2 pb-2">
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="link" size="sm" className="text-color2 shadow-none text-[14px] font-inter tracking-tight font-bold outline-none rounded-xs">
-											<Plus size={10} /> Files and sources
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent className="rounded-xs">
-										<FileUploadButton accept=".pdf" className="p-2 cursor-pointer font-inter tracking-tighter font-bold text-[14px]">
-											Upload Files from Computer
-										</FileUploadButton>
-									</DropdownMenuContent>
-								</DropdownMenu>
+
+								<div
+									onDrop={handleDrop}
+									onDragOver={(event) => event.preventDefault()}
+									className="w-full h-full font-inter text-xs cursor-pointer flex flex-col space-y-2 justify-center items-center rounded-xs border border-color3 p-4"
+								>
+
+									{/* <p className="italic font-light"> DRAG & DROP ZONE </p> */}
+									<CloudUpload size={48} />
+									<p className="font-merri">Drag and drop your documents here</p>
+									<p className="font-merri"><strong>Supported Format:</strong> PDF</p>
+
+								</div>
+
+								<div className="w-full flex justify-center">
+									<Button onClick={handleSend} variant="secondary" size="lg" className="font-bold border-2 border-color3 w-1/2 text-color4 font-inter text-xs tracking-tight">Ask Specter</Button>
+								</div>
 							</div>
-						</div>
+
+						)
+					}
+					<div>
 					</div>
 				</div>
 			</div>
-		</div>
+		</SidebarProvider>
 	);
+
 }
