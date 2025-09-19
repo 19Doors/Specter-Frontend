@@ -1,4 +1,5 @@
 "use client"
+import Image from "next/image";
 import { Separator } from "@/components/ui/separator";
 import {
 	Card,
@@ -35,7 +36,8 @@ import dynamic from "next/dynamic";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, CheckCircle, Shield } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AlertTriangle, CheckCircle, Shield, Download, FileText } from "lucide-react";
 import Link from "next/link";
 
 interface BoundingBox {
@@ -71,6 +73,97 @@ const MyPdf = dynamic(
 	() => import('@/components/pdfView'),
 	{ ssr: false }
 );
+
+// Download function for base64 files
+const downloadFromBase64 = (base64String: string, fileName: string, mimeType: string = "application/pdf") => {
+	const linkSource = `data:${mimeType};base64,${base64String}`;
+	const downloadLink = document.createElement("a");
+
+	downloadLink.href = linkSource;
+	downloadLink.download = fileName;
+
+	document.body.appendChild(downloadLink);
+	downloadLink.click();
+	document.body.removeChild(downloadLink);
+};
+
+// Documents Dialog Component
+const DocumentsDialog = ({ files, isLoading }: { files: Record<string, string> | null, isLoading: boolean }) => {
+	const handleDownload = (fileName: string, base64Data: string) => {
+		downloadFromBase64(base64Data, fileName);
+	};
+
+	// Show skeleton loading state
+	if (isLoading) {
+		return (
+			<NavigationMenuLink className="font-bold rounded-xs hover:bg-color2 font-inter p-2 cursor-not-allowed">
+				<Skeleton className="h-4 w-20 bg-color3" />
+			</NavigationMenuLink>
+		);
+	}
+
+	return (
+		<Dialog>
+			<DialogTrigger asChild>
+				<NavigationMenuLink className="font-bold rounded-xs hover:bg-color2 font-inter cursor-pointer p-2">
+					Documents
+				</NavigationMenuLink>
+			</DialogTrigger>
+			<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto rounded-xs">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2 font-inter text-lg">
+						Available Documents
+					</DialogTitle>
+					<DialogDescription className="font-inter text-sm">
+						Download your legal documents
+					</DialogDescription>
+				</DialogHeader>
+
+				<div className="space-y-4">
+					{!files || Object.entries(files).length === 0 ? (
+						<p className="text-center text-gray-500 font-inter text-sm py-8">
+							No documents available for download
+						</p>
+					) : (
+						<div className="space-y-3">
+							{Object.entries(files).map(([fileName, base64Data]) => (
+								<div
+									key={fileName}
+									className="flex items-center justify-between p-4 border border-color3 rounded-xs hover:bg-color2 transition-colors"
+								>
+									<div className="flex items-center gap-5">
+										<Image src="./../../adobe_color.svg" alt="pdf" height={16} width={16} />
+										<div>
+											<p className="font-inter font-medium text-sm">{fileName}</p>
+											<p className="font-inter text-xs text-gray-500">PDF Document</p>
+										</div>
+									</div>
+									<Button
+										onClick={() => handleDownload(fileName, base64Data)}
+										variant="outline"
+										size="sm"
+										className="font-inter rounded-xs flex items-center gap-2"
+									>
+										<Download className="h-4 w-4" />
+										Download
+									</Button>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+
+				<DialogFooter>
+					<DialogClose asChild>
+						<Button variant="outline" className="font-inter rounded-xs">
+							Close
+						</Button>
+					</DialogClose>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+};
 
 const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 	const getSeverityIcon = (severity: string) => {
@@ -125,20 +218,17 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 						</Badge>
 					</DialogDescription>
 				</DialogHeader>
-
 				<div className="space-y-6 font-inter">
 					{/* Description */}
 					<div>
 						<h3 className="font-inter font-bold text-sm mb-2">Description</h3>
 						<p className="font-inter text-sm text-gray-700 leading-relaxed">{risk.description}</p>
 					</div>
-
 					{/* Why Risky */}
 					<div>
 						<h3 className="font-bold text-sm mb-2">Why This is Risky</h3>
 						<p className="text-sm text-gray-700 leading-relaxed">{risk.why_risky}</p>
 					</div>
-
 					{/* Source Citation */}
 					<div className="bg-gray-50 p-4 rounded-lg">
 						<h3 className="font-bold text-sm mb-2">Source Reference</h3>
@@ -147,7 +237,6 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 						</p>
 					</div>
 				</div>
-
 				<DialogFooter>
 					<DialogClose asChild>
 						<Button variant="outline" className="font-inter rounded-xs">
@@ -165,8 +254,8 @@ export default function Chat({ params }) {
 	const { conv_id } = resolvedParams;
 	const [conversation, setConversation] = useState(null);
 	const [summary, setSummary] = useState<LegalDocumentSummary>();
-	const [files, setFiles] = useState(null);
-
+	const [files, setFiles] = useState<Record<string, string> | null>(null);
+	const [filesLoading, setFilesLoading] = useState(true);
 	const {
 		data: session,
 		isPending, //loading state
@@ -190,14 +279,12 @@ export default function Chat({ params }) {
 					const d = { "x": xx.bounding_box.x, "y": xx.bounding_box.y, "width": xx.bounding_box.width, "height": xx.bounding_box.height, "pageNumber": xx.page_number, "color": "border-red-500" }
 					req.push(d)
 				}
-
 				data = response.conversations.summary.risk_assessment.medium_risk_items
 				for (let v of data) {
 					let xx = v.source_citation;
 					const d = { "x": xx.bounding_box.x, "y": xx.bounding_box.y, "width": xx.bounding_box.width, "height": xx.bounding_box.height, "pageNumber": xx.page_number, "color": "border-yellow-500" }
 					req.push(d)
 				}
-
 				data = response.conversations.summary.risk_assessment.low_risk_items
 				for (let v of data) {
 					let xx = v.source_citation;
@@ -207,22 +294,29 @@ export default function Chat({ params }) {
 				return req
 			})
 		}
-		async function getFiles(user_id: string) {
-			const response = await get_files({ "user_id": user_id, "conversation_id": conv_id });
-			setFiles((files) => response.files)
 
-			const d = "data:application/pdf;base64," + response.files['lease.pdf']
-			useDecoded((x) => d);
+		async function getFiles(user_id: string) {
+			setFilesLoading(true);
+			try {
+				const response = await get_files({ "user_id": user_id, "conversation_id": conv_id });
+				setFiles(response.files)
+				const d = "data:application/pdf;base64," + response.files['rental_02.pdf']
+				useDecoded((x) => d);
+			} catch (error) {
+				console.error("Error loading files:", error);
+			} finally {
+				setFilesLoading(false);
+			}
 		}
+
 		if (session) {
 			getConversations(session.user.id);
 			getFiles(session.user.id);
-
 		}
 	}, [session])
 
 	if (summary) {
-		return (<Dialog>
+		return (
 			<div className="w-full h-screen flex flex-col">
 				<div className="p-2">
 					<NavigationMenu viewport={false}>
@@ -233,9 +327,7 @@ export default function Chat({ params }) {
 								</NavigationMenuLink>
 							</NavigationMenuItem>
 							<NavigationMenuItem className="rounded-xs">
-								<NavigationMenuLink asChild className="font-bold rounded-xs hover:bg-color2 font-inter cursor-pointer p-2">
-									<Link href={"/"}>Documents</Link>
-								</NavigationMenuLink>
+								<DocumentsDialog files={files} isLoading={filesLoading} />
 							</NavigationMenuItem>
 						</NavigationMenuList>
 					</NavigationMenu>
@@ -243,7 +335,6 @@ export default function Chat({ params }) {
 				<div className="w-full h-screen grid grid-cols-3 gap-10 py-[24px] font-merri">
 					<div className="w-full h-full border-r ">
 					</div>
-
 					<div className="w-full flex flex-col gap-4">
 						<header className="flex justify-between">
 							<div className="flex flex-col">
@@ -264,9 +355,7 @@ export default function Chat({ params }) {
 								})}
 							</div>
 						</header>
-
 						<Separator />
-
 						{/* Status Count */}
 						<div className="w-full justify-center items-center flex text-sm gap-4">
 							<p className="hover:underline cursor-pointer">Finance ({summary.key_financial_terms.length})</p>
@@ -277,9 +366,7 @@ export default function Chat({ params }) {
 							|
 							<p className="hover:underline cursor-pointer">Obligations ({summary.key_obligations.length})</p>
 						</div>
-
 						<Separator />
-
 						<div className="flex flex-col gap-4 w-full">
 							<div className="w-full flex flex-col gap-2">
 								<h2 className="text-lg font-bold">Risk Assessment</h2>
@@ -313,7 +400,6 @@ export default function Chat({ params }) {
 								</Table>
 							</div>
 						</div>
-
 					</div>
 					<div>
 						{/* {decoded.length > 0 && ( */}
@@ -322,9 +408,8 @@ export default function Chat({ params }) {
 					</div>
 				</div>
 			</div>
-		</Dialog>)
+		)
 	} else {
 		return <></>
 	}
-
 }

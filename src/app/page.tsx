@@ -160,6 +160,7 @@ export default function Dashboard() {
 							<CloudUpload size={48} />
 							<p className="font-merri">Drag and drop your documents here</p>
 							<p className="font-merri"><strong>Supported Format:</strong> PDF</p>
+							<p className="font-merri bold">Max 30 pages each</p>
 						</div>)
 					}
 					{
@@ -187,6 +188,7 @@ export default function Dashboard() {
 									<CloudUpload size={48} />
 									<p className="font-merri">Drag and drop your documents here</p>
 									<p className="font-merri"><strong>Supported Format:</strong> PDF</p>
+									<p className="font-merri bold">Max 30 pages each</p>
 
 								</div>
 
