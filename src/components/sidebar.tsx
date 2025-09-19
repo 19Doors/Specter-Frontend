@@ -126,7 +126,7 @@ export function SpecSidebar() {
 											</Avatar>
 											<div className='font-inter text-xs'>
 												<p className="font-bold">{username}</p>
-												<p>{session.user.email}</p>
+												<p>{session?.user.email}</p>
 											</div>
 										</>
 									)}

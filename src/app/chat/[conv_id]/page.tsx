@@ -9,6 +9,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card"
+import {
+	NavigationMenu,
+	NavigationMenuContent,
+	NavigationMenuItem,
+	NavigationMenuLink,
+	NavigationMenuList,
+	NavigationMenuTrigger,
+	navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SpecSidebar } from "@/components/sidebar";
 import { Accordion, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -27,6 +36,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, CheckCircle, Shield } from "lucide-react";
+import Link from "next/link";
 
 interface BoundingBox {
 	x: number;
@@ -92,9 +102,9 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<TableRow className="cursor-pointer hover:bg-gray-50">
+				<TableRow className="cursor-pointer hover:bg-color2">
 					<TableCell>
-						<Badge className={`rounded-xs font-inter text-xs capitalize ${getSeverityColor(risk.severity)}`}>
+						<Badge className={`rounded-xs font-inter tracking-tight text-xs capitalize ${getSeverityColor(risk.severity)}`}>
 							{risk.severity}
 						</Badge>
 					</TableCell>
@@ -105,7 +115,7 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 			</DialogTrigger>
 			<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
 				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2 font-merri text-xl">
+					<DialogTitle className="flex items-center gap-2 font-inter text-lg overflow-x-auto">
 						{getSeverityIcon(risk.severity)}
 						{risk.title}
 					</DialogTitle>
@@ -115,12 +125,12 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 						</Badge>
 					</DialogDescription>
 				</DialogHeader>
-				
+
 				<div className="space-y-6 font-inter">
 					{/* Description */}
 					<div>
-						<h3 className="font-bold text-sm mb-2">Description</h3>
-						<p className="text-sm text-gray-700 leading-relaxed">{risk.description}</p>
+						<h3 className="font-inter font-bold text-sm mb-2">Description</h3>
+						<p className="font-inter text-sm text-gray-700 leading-relaxed">{risk.description}</p>
 					</div>
 
 					{/* Why Risky */}
@@ -140,7 +150,7 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 
 				<DialogFooter>
 					<DialogClose asChild>
-						<Button variant="outline" className="font-inter">
+						<Button variant="outline" className="font-inter rounded-xs">
 							Close
 						</Button>
 					</DialogClose>
@@ -187,6 +197,13 @@ export default function Chat({ params }) {
 					const d = { "x": xx.bounding_box.x, "y": xx.bounding_box.y, "width": xx.bounding_box.width, "height": xx.bounding_box.height, "pageNumber": xx.page_number, "color": "border-yellow-500" }
 					req.push(d)
 				}
+
+				data = response.conversations.summary.risk_assessment.low_risk_items
+				for (let v of data) {
+					let xx = v.source_citation;
+					const d = { "x": xx.bounding_box.x, "y": xx.bounding_box.y, "width": xx.bounding_box.width, "height": xx.bounding_box.height, "pageNumber": xx.page_number, "color": "border-green-500" }
+					req.push(d)
+				}
 				return req
 			})
 		}
@@ -205,110 +222,107 @@ export default function Chat({ params }) {
 	}, [session])
 
 	if (summary) {
-
-
-		return (<Dialog><div className="w-full h-screen grid grid-cols-3 gap-10 py-[24px] font-merri">
-			<div className="w-full h-full border-r ">
-			</div>
-
-			<div className="w-full flex flex-col gap-4">
-				<header className="flex justify-between">
-					<div className="flex flex-col">
-						<h1 className="text-xl">{summary.document_overview.title}</h1>
-						<p className="font-light text-xs">{summary.document_overview.effective_period}</p>
-					</div>
-					<div className="flex items-center">
-						{summary.document_overview.primary_parties.map((party) => {
-							return (
-								<div key={party.name} className="">
-									<Avatar className="-ml-2">
-										<AvatarFallback className="bg-background border border-color3 font-light cursor-pointer">
-											{party.name[0]}
-										</AvatarFallback>
-									</Avatar>
-								</div>
-							)
-						})}
-					</div>
-				</header>
-
-				<Separator />
-
-				{/* Status Count */}
-				<div className="w-full justify-center items-center flex text-sm gap-4">
-					<p className="hover:underline cursor-pointer">Finance ({summary.key_financial_terms.length})</p>
-					|
-					<p className="hover:underline cursor-pointer">Risks ({summary.risk_assessment.high_risk_items.length + summary.risk_assessment.medium_risk_items.length + summary.risk_assessment.low_risk_items.length})</p>
-					|
-					<p className="hover:underline cursor-pointer">Dates ({summary.important_dates.length})</p>
-					|
-					<p className="hover:underline cursor-pointer">Obligations ({summary.key_obligations.length})</p>
+		return (<Dialog>
+			<div className="w-full h-screen flex flex-col">
+				<div className="p-2">
+					<NavigationMenu viewport={false}>
+						<NavigationMenuList>
+							<NavigationMenuItem className="rounded-xs">
+								<NavigationMenuLink asChild className="font-bold rounded-xs hover:bg-color2 font-inter cursor-pointer p-2">
+									<Link href={"/"}>Dashboard</Link>
+								</NavigationMenuLink>
+							</NavigationMenuItem>
+							<NavigationMenuItem className="rounded-xs">
+								<NavigationMenuLink asChild className="font-bold rounded-xs hover:bg-color2 font-inter cursor-pointer p-2">
+									<Link href={"/"}>Documents</Link>
+								</NavigationMenuLink>
+							</NavigationMenuItem>
+						</NavigationMenuList>
+					</NavigationMenu>
 				</div>
+				<div className="w-full h-screen grid grid-cols-3 gap-10 py-[24px] font-merri">
+					<div className="w-full h-full border-r ">
+					</div>
 
-				<Separator />
+					<div className="w-full flex flex-col gap-4">
+						<header className="flex justify-between">
+							<div className="flex flex-col">
+								<h1 className="text-xl">{summary.document_overview.title}</h1>
+								<p className="font-light text-xs">{summary.document_overview.effective_period}</p>
+							</div>
+							<div className="flex items-center">
+								{summary.document_overview.primary_parties.map((party) => {
+									return (
+										<div key={party.name} className="">
+											<Avatar className="-ml-2">
+												<AvatarFallback className="bg-background border border-color3 font-light cursor-pointer">
+													{party.name[0]}
+												</AvatarFallback>
+											</Avatar>
+										</div>
+									)
+								})}
+							</div>
+						</header>
 
-				<div className="flex flex-col gap-4 w-full">
-					<div className="w-full flex flex-col gap-2">
-						<h2 className="text-lg font-bold">Risk Assessment</h2>
-						<div className="font-inter tracking-tight text-sm w-full flex space-y-2 items-center">
-							<Progress value={summary.risk_assessment.overall_risk_score * 10} className="border border-color3"/>
+						<Separator />
+
+						{/* Status Count */}
+						<div className="w-full justify-center items-center flex text-sm gap-4">
+							<p className="hover:underline cursor-pointer">Finance ({summary.key_financial_terms.length})</p>
+							|
+							<p className="hover:underline cursor-pointer">Risks ({summary.risk_assessment.high_risk_items.length + summary.risk_assessment.medium_risk_items.length + summary.risk_assessment.low_risk_items.length})</p>
+							|
+							<p className="hover:underline cursor-pointer">Dates ({summary.important_dates.length})</p>
+							|
+							<p className="hover:underline cursor-pointer">Obligations ({summary.key_obligations.length})</p>
 						</div>
-						<p className="text-sm font-inter tracking-tight">{summary.risk_assessment.risk_summary}</p>
+
+						<Separator />
+
+						<div className="flex flex-col gap-4 w-full">
+							<div className="w-full flex flex-col gap-2">
+								<h2 className="text-lg font-bold">Risk Assessment</h2>
+								<div className="font-inter tracking-tight text-sm w-full flex space-y-2 items-center">
+									<Progress value={summary.risk_assessment.overall_risk_score * 10} className="border border-color3" />
+								</div>
+								<p className="text-sm font-inter tracking-tight">{summary.risk_assessment.risk_summary}</p>
+							</div>
+							<div>
+								<Table className="table-fixed w-full">
+									<TableHeader>
+										<TableRow>
+											<TableHead className="w-[50px] font-bold">Severity</TableHead>
+											<TableHead className="w-[200px] font-bold">Title</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{/* High Risk Items */}
+										{summary.risk_assessment.high_risk_items.map((risk) => (
+											<RiskDetailDialog key={risk.title} risk={risk} />
+										))}
+										{/* Medium Risk Items */}
+										{summary.risk_assessment.medium_risk_items.map((risk) => (
+											<RiskDetailDialog key={risk.title} risk={risk} />
+										))}
+										{/* Low Risk Items */}
+										{summary.risk_assessment.low_risk_items.map((risk) => (
+											<RiskDetailDialog key={risk.title} risk={risk} />
+										))}
+									</TableBody>
+								</Table>
+							</div>
+						</div>
+
 					</div>
 					<div>
-						<Table className="table-fixed w-full">
-							<TableHeader>
-								<TableRow>
-									<TableHead className="w-[50px] font-bold">Severity</TableHead>
-									<TableHead className="w-[200px] font-bold">Title</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{/* High Risk Items */}
-								{summary.risk_assessment.high_risk_items.map((risk) => (
-									<TableRow key={risk.title} className="cursor-pointer">
-										<TableCell>
-											<Badge className="rounded-xs font-inter bg-red-500 text-xs capitalize">{risk.severity}</Badge>
-										</TableCell>
-										<TableCell>
-											<p className="truncate font-inter text-xs tracking-tight">{risk.title}</p>
-										</TableCell>
-									</TableRow>
-								))}
-
-								{summary.risk_assessment.medium_risk_items.map((risk) => (
-									<TableRow key={risk.title} className="cursor-pointer">
-										<TableCell>
-											<Badge className="rounded-xs truncate font-inter text-xs capitalize bg-yellow-500">{risk.severity}</Badge>
-										</TableCell>
-										<TableCell>
-											<p className="truncate font-inter text-xs tracking-tight">{risk.title}</p>
-										</TableCell>
-									</TableRow>
-								))}
-
-								{summary.risk_assessment.low_risk_items.map((risk) => (
-									<TableRow key={risk.title} className="cursor-pointer">
-										<TableCell>
-											<Badge className="rounded-xs bg-color3 text-color4 truncate font-inter text-xs capitalize">{risk.severity}</Badge>
-										</TableCell>
-										<TableCell>
-											<p className="truncate font-inter text-xs tracking-tight">{risk.title}</p>
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
+						{/* {decoded.length > 0 && ( */}
+						{/* 	<MyPdf pdfBase64={decoded} boundingBoxes={bb} /> */}
+						{/* )} */}
 					</div>
 				</div>
-
 			</div>
-			<div>
-				{decoded.length > 0 && (
-					<MyPdf pdfBase64={decoded} boundingBoxes={bb} />
-				)}
-			</div>
-		</div ></Dialog>)
+		</Dialog>)
 	} else {
 		return <></>
 	}
