@@ -1,41 +1,17 @@
 "use client"
-import { FileUploadButton } from "@/components/FileUploadButton";
 import Image from "next/image";
 import { uploadFiles, processDocuments, createSummary, saveSummary } from "@/lib/action";
-import { CloudUpload, AlertCircle, X, FileText, Brain, Database, CheckCircle } from "lucide-react";
+import { CloudUpload, AlertCircle, X, FileText, Brain, Database, CheckCircle, FolderOpen } from "lucide-react";
 import { useState, DragEvent, useEffect, useRef } from "react";
 import { authClient } from "@/lib/auth-client";
-import PdfWithBoxes from "@/components/pdfView";
-import dynamic from "next/dynamic";
 import { LegalDocumentSummary } from "@/lib/models";
-import { Separator } from "@/components/ui/separator";
-import {
-	Card,
-	CardAction,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SpecSidebar } from "@/components/sidebar";
-import { Accordion, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import PdfViewerWithBoxes from "@/components/pdfView";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gsap } from "gsap";
-
-const MyPdf = dynamic(
-	() => import('@/components/pdfView'),
-	{ ssr: false }
-);
 
 interface FileData {
 	base64: string;
@@ -44,45 +20,33 @@ interface FileData {
 	pageCount: number;
 }
 
-interface BoundingBox {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	pageNumber: number;
-	id?: string;
-	label?: string;
-	confidence?: number;
-	color?: string;
-}
-
 // Processing steps for loading animation
 const PROCESSING_STEPS = [
-	{ 
-		id: 'uploading', 
-		label: 'Uploading Documents', 
-		icon: FileText, 
+	{
+		id: 'uploading',
+		label: 'Uploading Documents',
+		icon: FileText,
 		description: "Securely uploading your legal documents to cloud storage...",
 		color: "#3B82F6"
 	},
-	{ 
-		id: 'analyzing', 
-		label: 'Analyzing Legal Content', 
-		icon: Brain, 
-		description: "Our AI is reading and understanding your documents...",
+	{
+		id: 'analyzing',
+		label: 'Analyzing Legal Content',
+		icon: Brain,
+		description: "Gemini is reading and understanding your documents...",
 		color: "#8B5CF6"
 	},
-	{ 
-		id: 'summarizing', 
-		label: 'Creating Summary', 
-		icon: Database, 
+	{
+		id: 'summarizing',
+		label: 'Creating Summary',
+		icon: Database,
 		description: "Generating structured legal analysis and risk assessment...",
 		color: "#F59E0B"
 	},
-	{ 
-		id: 'complete', 
-		label: 'Analysis Complete', 
-		icon: CheckCircle, 
+	{
+		id: 'complete',
+		label: 'Analysis Complete',
+		icon: CheckCircle,
 		description: "Ready to answer your legal questions!",
 		color: "#10B981"
 	}
@@ -91,13 +55,12 @@ const PROCESSING_STEPS = [
 export default function Dashboard() {
 	const sidebarOpen = true;
 	const [files, setFiles] = useState<FileData[]>([]);
-	const [summary, setSummary] = useState<LegalDocumentSummary>();
 	const [user_id, setUserId] = useState("");
 	const [isUploading, setIsUploading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string>("");
 	const [pdfjs, setPdfjs] = useState<any>(null);
 	const [isClient, setIsClient] = useState(false);
-	
+
 	// Processing states
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [currentStep, setCurrentStep] = useState(0);
@@ -109,6 +72,10 @@ export default function Dashboard() {
 	const iconRef = useRef<HTMLDivElement>(null);
 	const progressRingRef = useRef<HTMLDivElement>(null);
 	const stepsRef = useRef<HTMLDivElement>(null);
+
+	// File input refs
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	const additionalFileInputRef = useRef<HTMLInputElement>(null);
 
 	const {
 		data: session,
@@ -129,10 +96,10 @@ export default function Dashboard() {
 			const loadPdfJs = async () => {
 				try {
 					const { pdfjs: pdfjsLib } = await import('react-pdf');
-					
+
 					// Configure PDF.js worker
 					pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-					
+
 					setPdfjs(pdfjsLib);
 				} catch (error) {
 					console.error('Failed to load PDF.js:', error);
@@ -155,8 +122,8 @@ export default function Dashboard() {
 	useEffect(() => {
 		if (isProcessing && processingRef.current) {
 			// Entrance animation
-			gsap.fromTo(processingRef.current, 
-				{ opacity: 0, scale: 0.8 }, 
+			gsap.fromTo(processingRef.current,
+				{ opacity: 0, scale: 0.8 },
 				{ opacity: 1, scale: 1, duration: 0.5, ease: "back.out(1.7)" }
 			);
 		}
@@ -165,7 +132,7 @@ export default function Dashboard() {
 	useEffect(() => {
 		if (isProcessing && iconRef.current) {
 			const currentStepData = PROCESSING_STEPS[currentStep];
-			
+
 			// Icon animation
 			gsap.to(iconRef.current, {
 				scale: 1.1,
@@ -199,7 +166,7 @@ export default function Dashboard() {
 	useEffect(() => {
 		if (stepsRef.current) {
 			const stepElements = stepsRef.current.children;
-			
+
 			gsap.to(stepElements[currentStep], {
 				scale: 1.1,
 				duration: 0.3,
@@ -318,6 +285,31 @@ export default function Dashboard() {
 		return { validFiles, errorMessages };
 	};
 
+	// Handle file selection from input
+	const handleFileSelect = async (selectedFiles: FileList | null) => {
+		if (!selectedFiles || selectedFiles.length === 0) return;
+
+		setIsUploading(true);
+		setErrorMessage("");
+
+		try {
+			const { validFiles, errorMessages } = await validateAndProcessFiles(selectedFiles);
+
+			// Add only valid files to the list
+			setFiles(prevFiles => [...prevFiles, ...validFiles]);
+
+			// Show error message if any files were rejected
+			if (errorMessages.length > 0) {
+				setErrorMessage(errorMessages.join(' '));
+			}
+		} catch (error) {
+			console.error('File processing error:', error);
+			setErrorMessage('An error occurred while processing the files.');
+		}
+
+		setIsUploading(false);
+	};
+
 	// Animate progress updates
 	const updateProgress = (newProgress: number) => {
 		gsap.to({ value: progress }, {
@@ -407,26 +399,8 @@ export default function Dashboard() {
 
 	async function handleDrop(e: DragEvent<HTMLDivElement>) {
 		e.preventDefault();
-		setIsUploading(true);
-		setErrorMessage("");
 		const droppedFiles = e.dataTransfer.files;
-		if (droppedFiles.length > 0) {
-			try {
-				const { validFiles, errorMessages } = await validateAndProcessFiles(droppedFiles);
-				
-				// Add only valid files to the list
-				setFiles(prevFiles => [...prevFiles, ...validFiles]);
-				
-				// Show error message if any files were rejected
-				if (errorMessages.length > 0) {
-					setErrorMessage(errorMessages.join(' '));
-				}
-			} catch (error) {
-				console.error('File processing error:', error);
-				setErrorMessage('An error occurred while processing the files.');
-			}
-		}
-		setIsUploading(false);
+		await handleFileSelect(droppedFiles);
 	}
 
 	// Remove file from list
@@ -452,19 +426,19 @@ export default function Dashboard() {
 		await processDocumentsStepByStep(uploadData);
 	}
 
-	// Processing Loading Component with GSAP animations
+	// Processing Loading Component with GSAP animations - RESPONSIVE
 	const ProcessingComponent = () => {
 		const currentStepData = PROCESSING_STEPS[currentStep];
 		const IconComponent = currentStepData.icon;
 
 		return (
-			<div ref={processingRef} className="w-full h-screen flex justify-center items-center flex-col space-y-8">
-				<div className="text-center w-1/3 space-y-6">
-					{/* Main Icon with Progress Ring */}
+			<div ref={processingRef} className="w-full min-h-screen flex justify-center items-center px-4 py-8">
+				<div className="text-center w-full max-w-lg space-y-6 md:space-y-8">
+					{/* Main Icon with Progress Ring - Responsive sizing */}
 					<div className="flex justify-center mb-6">
 						<div className="relative">
-							{/* Progress Ring */}
-							<svg className="w-32 h-32 -rotate-90" viewBox="0 0 100 100">
+							{/* Progress Ring - Responsive size */}
+							<svg className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 -rotate-90" viewBox="0 0 100 100">
 								<circle
 									cx="50"
 									cy="50"
@@ -487,58 +461,59 @@ export default function Dashboard() {
 									strokeLinecap="round"
 								/>
 							</svg>
-							
-							{/* Icon in center */}
+
+							{/* Icon in center - Responsive size */}
 							<div ref={iconRef} className="absolute inset-0 flex items-center justify-center">
-								<IconComponent 
-									size={48} 
+								<IconComponent
+									size={typeof window !== 'undefined' && window.innerWidth < 640 ? 32 : typeof window !== 'undefined' && window.innerWidth < 768 ? 40 : 48}
 									className="text-color4 transition-colors duration-500"
 									style={{ color: currentStepData.color }}
 								/>
 							</div>
-							
-							{/* Progress percentage */}
-							<div className="absolute inset-0 flex items-center justify-center mt-16">
-								<span className="text-sm font-inter font-bold text-gray-600">
+
+							{/* Progress percentage - Responsive positioning */}
+							<div className="absolute inset-0 flex items-center justify-center mt-12 sm:mt-14 md:mt-16">
+								<span className="text-xs sm:text-sm font-inter font-bold text-gray-600">
 									{progress}%
 								</span>
 							</div>
 						</div>
 					</div>
-					
-					<h1 className="font-merri text-2xl font-bold">{currentStepData.label}</h1>
-					<p className="font-merri font-light text-gray-600">
+
+					{/* Responsive typography */}
+					<h1 className="font-merri text-xl sm:text-2xl md:text-2xl font-bold px-4">
+						{currentStepData.label}
+					</h1>
+					<p className="font-merri font-light text-gray-600 text-sm sm:text-base px-4">
 						{currentStepData.description}
 					</p>
 
-					{/* Step indicators */}
-					<div ref={stepsRef} className="flex justify-center space-x-6 pt-6">
+					{/* Step indicators - Responsive layout */}
+					<div ref={stepsRef} className="flex justify-center space-x-3 sm:space-x-4 md:space-x-6 pt-6 px-4 overflow-x-auto">
 						{PROCESSING_STEPS.map((step, index) => {
 							const StepIcon = step.icon;
 							const isCompleted = index < currentStep;
 							const isCurrent = index === currentStep;
-							
+
 							return (
-								<div 
+								<div
 									key={step.id}
-									className={`flex flex-col items-center space-y-2 transition-all duration-300 ${
-										isCompleted || isCurrent ? 'opacity-100' : 'opacity-40'
-									}`}
+									className={`flex flex-col items-center space-y-1 sm:space-y-2 transition-all duration-300 flex-shrink-0 ${isCompleted || isCurrent ? 'opacity-100' : 'opacity-40'
+										}`}
 								>
-									<div className={`p-3 rounded-full border-2 transition-all duration-300 ${
-										isCompleted 
-											? 'border-green-500 bg-green-500/10 text-green-500' 
-											: isCurrent 
+									<div className={`p-2 sm:p-3 rounded-full border-2 transition-all duration-300 ${isCompleted
+											? 'border-green-500 bg-green-500/10 text-green-500'
+											: isCurrent
 												? 'border-color4 bg-color4/10 text-color4 shadow-lg'
 												: 'border-gray-300 text-gray-400'
-									}`}>
+										}`}>
 										{isCompleted ? (
-											<CheckCircle size={20} />
+											<CheckCircle size={16} className="sm:w-5 sm:h-5" />
 										) : (
-											<StepIcon size={20} />
+											<StepIcon size={16} className="sm:w-5 sm:h-5" />
 										)}
 									</div>
-									<span className="text-xs font-inter font-medium max-w-16 text-center leading-tight">
+									<span className="text-xs font-inter font-medium max-w-12 sm:max-w-16 text-center leading-tight">
 										{step.label}
 									</span>
 								</div>
@@ -546,9 +521,9 @@ export default function Dashboard() {
 						})}
 					</div>
 
-					{/* File count indicator */}
+					{/* File count indicator - Responsive */}
 					{files.length > 0 && (
-						<div className="mt-6 text-sm text-gray-500 font-inter">
+						<div className="mt-6 text-xs sm:text-sm text-gray-500 font-inter">
 							Processing {files.length} document{files.length > 1 ? 's' : ''}
 						</div>
 					)}
@@ -574,13 +549,13 @@ export default function Dashboard() {
 		return (
 			<SidebarProvider defaultOpen={sidebarOpen}>
 				<SpecSidebar />
-				<div className="w-full h-screen">
-					<div className="w-full h-full flex justify-center items-center flex-col space-y-8">
-						<div className="text-center w-1/3 space-y-1">
-							<h1 className="font-merri text-2xl font-bold">Upload Your Legal Documents</h1>
-							<p className="font-merri font-light">Let our AI analyze your contracts, agreements, and legal documents to provide clear, actionable insights</p>
+				<div className="w-full min-h-screen">
+					<div className="w-full h-full flex justify-center items-center flex-col space-y-6 sm:space-y-8 px-4 py-8">
+						<div className="text-center w-full max-w-2xl space-y-2 sm:space-y-4">
+							<h1 className="font-merri text-xl sm:text-2xl font-bold">Upload Your Legal Documents</h1>
+							<p className="font-merri font-light text-sm sm:text-base">Let our AI analyze your contracts, agreements, and legal documents to provide clear, actionable insights</p>
 						</div>
-						<div className="font-inter text-xs cursor-pointer flex flex-col space-y-2 justify-center items-center rounded-xs border border-color3 w-1/4 h-1/4">
+						<div className="font-inter text-xs cursor-pointer flex flex-col space-y-2 justify-center items-center rounded-xs border border-color3 w-full max-w-xs h-40 sm:h-48">
 							<CloudUpload size={48} />
 							<p className="font-merri">Loading PDF processor...</p>
 						</div>
@@ -595,15 +570,15 @@ export default function Dashboard() {
 		return (
 			<SidebarProvider defaultOpen={sidebarOpen}>
 				<SpecSidebar />
-				<div className="w-full h-screen">
-					<div className="w-full h-full flex justify-center items-center flex-col space-y-8">
-						<div className="text-center w-1/3 space-y-1">
-							<Skeleton className="h-8 w-64 mx-auto" />
-							<Skeleton className="h-4 w-96 mx-auto" />
+				<div className="w-full min-h-screen">
+					<div className="w-full h-full flex justify-center items-center flex-col space-y-6 sm:space-y-8 px-4 py-8">
+						<div className="text-center w-full max-w-2xl space-y-2 sm:space-y-4">
+							<Skeleton className="h-6 sm:h-8 w-48 sm:w-64 mx-auto" />
+							<Skeleton className="h-4 w-72 sm:w-96 mx-auto" />
 						</div>
 						<div className="space-y-2">
-							<Skeleton className="h-4 w-48" />
-							<Skeleton className="h-4 w-32" />
+							<Skeleton className="h-4 w-36 sm:w-48" />
+							<Skeleton className="h-4 w-24 sm:w-32" />
 						</div>
 					</div>
 				</div>
@@ -614,52 +589,72 @@ export default function Dashboard() {
 	return (
 		<SidebarProvider defaultOpen={sidebarOpen}>
 			<SpecSidebar />
-			<div className="w-full h-screen">
-				<div className="w-full h-full flex justify-center items-center flex-col space-y-8">
-					<div className="text-center w-1/3 space-y-1">
-						<h1 className="font-merri text-2xl font-bold">Upload Your Legal Documents</h1>
-						<p className="font-merri font-light">Let our AI analyze your contracts, agreements, and legal documents to provide clear, actionable insights</p>
+			<SidebarTrigger className="md:opacity-0"/>
+			<div className="w-full min-h-screen">
+				<div className="w-full h-full flex justify-center items-center flex-col space-y-6 sm:space-y-8 px-4 py-8">
+					{/* Responsive header */}
+					<div className="text-center w-full max-w-2xl space-y-2 sm:space-y-4">
+						<h1 className="font-merri text-xl sm:text-2xl font-bold">Upload Your Legal Documents</h1>
+						<p className="font-merri font-light text-sm sm:text-base">Let our AI analyze your contracts, agreements, and legal documents to provide clear, actionable insights</p>
 					</div>
-					{/* Error Message */}
+
+					{/* Error Message - Responsive width */}
 					{errorMessage && (
-						<Alert className="w-1/2 border-red-200">
+						<Alert className="w-full max-w-md sm:max-w-lg border-red-200">
 							<AlertCircle className="h-4 w-4 text-red-500" />
 							<AlertDescription className="text-red-600 text-sm">
 								{errorMessage}
 							</AlertDescription>
 						</Alert>
 					)}
-					{/* Loading Skeletons */}
+
+					{/* Loading Skeletons - Responsive width */}
 					{isUploading && (
-						<div className="w-1/2 space-y-2">
+						<div className="w-full max-w-md sm:max-w-lg space-y-2">
 							<Skeleton className="h-4 w-full" />
 							<Skeleton className="h-4 w-3/4" />
 							<Skeleton className="h-4 w-1/2" />
 						</div>
 					)}
+
+					{/* Drop zone with file selection - Responsive sizing */}
 					{files.length == 0 && !isUploading && (
-						<div
-							onDrop={handleDrop}
-							onDragOver={(event) => event.preventDefault()}
-							className="font-inter text-xs cursor-pointer flex flex-col space-y-2 justify-center items-center rounded-xs border border-color3 w-1/4 h-1/4"
-						>
-							<CloudUpload size={48} />
-							<p className="font-merri">Drag and drop your documents here</p>
-							<p className="font-merri"><strong>Supported Format:</strong> PDF</p>
-							<p className="font-merri font-bold">Max 30 pages each</p>
+						<div className="relative">
+							<input
+								ref={fileInputRef}
+								type="file"
+								accept=".pdf,application/pdf"
+								multiple
+								onChange={(e) => handleFileSelect(e.target.files)}
+								className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+							/>
+							<div
+								onDrop={handleDrop}
+								onDragOver={(event) => event.preventDefault()}
+								className="font-inter text-xs cursor-pointer flex flex-col space-y-3 justify-center items-center rounded-xs border-2 border-dashed border-color3 w-full max-w-sm sm:max-w-lg h-40 md:h-52 p-4 hover:border-color4 hover:bg-color2/20 transition-colors"
+							>
+								<CloudUpload size={48} className="text-color4" />
+								<p className="font-merri font-medium text-xs">Drag and drop your documents here</p>
+								<div className="text-center space-y-1">
+									<p className="font-merri"><strong>Supported Format:</strong> PDF</p>
+									<p className="font-merri font-bold">Max 30 pages each</p>
+								</div>
+							</div>
 						</div>
 					)}
+
+					{/* File list and upload area - Responsive layout */}
 					{files.length > 0 && (
-						<div className="max-w-1/3 flex flex-col text-center font-inter text-xs font-bold text-bg tracking-tight m-2 gap-4 justify-between">
+						<div className="w-full max-w-sm sm:max-w-md flex flex-col text-center font-inter text-xs font-bold text-bg tracking-tight gap-4">
 							<div className="flex flex-col gap-2">
 								{files.map((f, index) => (
-									<div 
-										key={`${f.name}-${index}`} 
-										className="flex p-4 gap-2 flex-1 items-center rounded-xs min-w-0 w-full bg-color2"
+									<div
+										key={`${f.name}-${index}`}
+										className="flex p-3 sm:p-4 gap-2 flex-1 items-center rounded-xs min-w-0 w-full bg-color2"
 									>
-										<Image src="./adobe_color.svg" alt="pdf" height={16} width={16} />
-										<div className="flex-1 text-left">
-											<span className="truncate block">{f.name}</span>
+										<Image src="./adobe_color.svg" alt="pdf" height={16} width={16} className="flex-shrink-0" />
+										<div className="flex-1 text-left min-w-0">
+											<span className="truncate block text-xs sm:text-sm">{f.name}</span>
 											<span className="text-xs text-gray-600 block">
 												{f.pageCount} pages
 											</span>
@@ -668,29 +663,44 @@ export default function Dashboard() {
 											onClick={() => removeFile(index)}
 											variant="ghost"
 											size="sm"
-											className="h-6 w-6 p-0"
+											className="h-6 w-6 p-0 flex-shrink-0"
 										>
 											<X className="h-4 w-4" />
 										</Button>
 									</div>
 								))}
 							</div>
-							<div
-								onDrop={handleDrop}
-								onDragOver={(event) => event.preventDefault()}
-								className="w-full h-full font-inter text-xs cursor-pointer flex flex-col space-y-2 justify-center items-center rounded-xs border border-color3 p-4"
-							>
-								<CloudUpload size={48} />
-								<p className="font-merri">Drag and drop your documents here</p>
-								<p className="font-merri"><strong>Supported Format:</strong> PDF</p>
-								<p className="font-merri font-bold">Max 30 pages each</p>
+
+							{/* Additional drop zone with file selection - Responsive */}
+							<div className="relative">
+								<input
+									ref={additionalFileInputRef}
+									type="file"
+									accept=".pdf,application/pdf"
+									multiple
+									onChange={(e) => handleFileSelect(e.target.files)}
+									className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+								/>
+								<div
+									onDrop={handleDrop}
+									onDragOver={(event) => event.preventDefault()}
+									className="w-full font-inter text-xs cursor-pointer flex flex-col space-y-3 justify-center items-center rounded-xs border-2 border-dashed border-color3 p-4 min-h-[120px] sm:min-h-[140px] hover:border-color4 hover:bg-color2/20 transition-colors"
+								>
+									<CloudUpload size={40} className="sm:w-12 sm:h-12 text-color4" />
+									<div className="text-center space-y-2">
+										<p className="font-merri">Add more documents</p>
+									</div>
+									<p className="font-merri text-center"><strong>PDF only, max 30 pages each</strong></p>
+								</div>
 							</div>
+
+							{/* Submit button - Responsive */}
 							<div className="w-full flex justify-center">
-								<Button 
-									onClick={handleSend} 
-									variant="secondary" 
-									size="lg" 
-									className="font-bold border-2 border-color3 w-1/2 text-color4 font-inter text-xs tracking-tight"
+								<Button
+									onClick={handleSend}
+									variant="secondary"
+									size="lg"
+									className="font-bold border-2 border-color3 w-full sm:w-3/4 md:w-1/4 text-color4 font-inter text-xs tracking-tight"
 									disabled={files.length === 0 || isProcessing}
 								>
 									{isProcessing ? 'Processing...' : 'Ask Specter'}

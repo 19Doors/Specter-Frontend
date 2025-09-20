@@ -2,7 +2,8 @@
 import { LegalDocumentSummary } from "./models";
 
 // Base URL for API calls
-const API_BASE_URL = 'http://127.0.0.1:8000';
+// const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = 'https://spectorbackend-817780240534.asia-southeast1.run.app';
 
 // Interfaces
 interface File {

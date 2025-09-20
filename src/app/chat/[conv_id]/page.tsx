@@ -206,7 +206,7 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 					</TableCell>
 				</TableRow>
 			</DialogTrigger>
-			<DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+			<DialogContent className="rounded-xs max-w-2xl max-h-[80vh] overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle className="flex items-center gap-2 font-inter text-lg overflow-x-auto">
 						{getSeverityIcon(risk.severity)}
@@ -230,9 +230,9 @@ const RiskDetailDialog = ({ risk }: { risk: RiskItem }) => {
 						<p className="text-sm text-gray-700 leading-relaxed">{risk.why_risky}</p>
 					</div>
 					{/* Source Citation */}
-					<div className="bg-gray-50 p-4 rounded-lg">
+					<div className="bg-color2 p-4 rounded-xs">
 						<h3 className="font-bold text-sm mb-2">Source Reference</h3>
-						<p className="text-xs text-gray-600">
+						<p className="text-xs text-gray-500">
 							Found on page {risk.source_citation.page_number} of the document
 						</p>
 					</div>

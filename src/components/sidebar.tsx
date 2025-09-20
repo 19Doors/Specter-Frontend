@@ -13,6 +13,7 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarMenuSkeleton,
+	SidebarTrigger,
 } from "./ui/sidebar"
 
 import { Calendar, Home, Inbox, MessageCircle, Search, Settings } from "lucide-react"
