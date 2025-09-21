@@ -73,7 +73,7 @@ const PdfViewerWithBoxes: React.FC<PdfViewerProps> = ({ pdfBase64, boundingBoxes
 				<div
 					key={box.id || `box-${pageNumber}-${index}`}
 					className={`
-          absolute border-2 cursor-pointer p-2 rounded-xs hover:bg-yellow-500
+          absolute border-3 cursor-pointer p-2 rounded-xs hover:bg-yellow-500
           ${box.color}
         `}
 					style={{
@@ -83,9 +83,8 @@ const PdfViewerWithBoxes: React.FC<PdfViewerProps> = ({ pdfBase64, boundingBoxes
 						height: `${actualHeight}px`,
 					}}
 					onClick={() => onBoxClick?.(box)}
-				>
-					{/* Same tooltip and handles code as before */}
-				</div>
+				 />
+				// </div>
 			);
 		});
 	};
