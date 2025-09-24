@@ -2,8 +2,13 @@
 
 **Your AI Legal Assistant with X-Ray Vision for Contracts.**
 
-[!][License: MIT](https://img.shields.io/badge(https://opensource.org/licenseshttps://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs)  
-[!][Framework: FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for(https://fastapi.tiangoloud](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google)(https://cloud.google.com a generative AI solution developed for the **Google Cloud Gen AI Exchange Hackathon**. Its objective is to demystify complex legal documents by simplifying jargon into clear, accessible guidance, empowering users to make informed decisions. It provides a private and supportive environment to analyze contracts, explain clauses, and answer questions in a simple, practical manner.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Framework: Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![Framework: FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Platform: Google Cloud](https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud&logoColor=white)](https://cloud.google.com/)
+
+Specter is a generative AI solution developed for the **Google Cloud Gen AI Exchange Hackathon**. Its objective is to demystify complex legal documents by simplifying jargon into clear, accessible guidance, empowering users to make informed decisions. It provides a private and supportive environment to analyze contracts, explain clauses, and answer questions in a simple, practical manner
 
 ***
 
