@@ -54,7 +54,7 @@ Specter is built on a modern, scalable architecture that leverages Google Cloud'
 
 ### Google Cloud Platform & AI
 * **Compute**: Cloud Run  
-* **Generative AI**: Gemini 1.5 Pro & Flash  
+* **Generative AI**: Gemini 2.5 Pro & Flash  
 * **Document Intelligence**: Document AI  
 * **Databases**:  
   * Firestore (Application Database for summaries/chats)  
@@ -133,7 +133,4 @@ To run this project locally, you will need to set up both the backend and fronte
 
 ***
 
-## 👥 Team
-
-This project was created by **Team Arrow** for the Google Gen AI Hackathon.  
-* **Team Leader**: Sakaar Srivastava  
+[![Made with ❤️ for Google Gen AI](https://img.shields.io/badge/Made%20with-%E2%9D%A4%EF%B8%8F%20for%20Google%20Gen%20AI-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white)](#)
