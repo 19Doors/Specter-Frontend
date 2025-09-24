@@ -71,9 +71,11 @@ To run this project locally, you will need to set up both the backend and fronte
 
 ### Backend Setup (`specter-backend`)
 
+**[Backend Git Repo](https://github.com/19Doors/Specter-backend.git)**
+
 1. **Clone the repository**:
     ```bash
-    git clone <your-repo-url>
+    git clone https://github.com/19Doors/Specter-backend.git
     cd 19doors-specter-backend
     ```
 2. **Set up a Python virtual environment**:
